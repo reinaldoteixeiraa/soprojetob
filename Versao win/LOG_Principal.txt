@@ -1,0 +1,7 @@
+path supervisionado: C://Users//danie//Desktop//Dir
+path backup: C://Users//danie//Documents//GitHub//soprojetob//Versao win//Sync
+data: 2018-06-14 23:03:58.176392
+versao: 0
+Files: 
+Diretorios: 
+

@@ -1,2 +1,0 @@
-path: C://Users//danie//Desktop//Dir
-data: 2018-06-12 06:33:24.779301
