@@ -1,18 +1,11 @@
 import argparse, sys, time, os, socket
 from datetime import datetime
 import threading # import Thread, Event
-import win32file, win32event, win32con
 import util # da minha pasta
-import socketserver
 from log_class import log_file
 
-class MyTCPHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        self.data = self.request.recv(1024).strip()
-        print("{} wrote:".format(self.client_address[0]))
-        print(self.data)
-        self.request.sendall(self.data.upper())
 
+# TEM QUE ALTERAR OS ARGS TAMBEM...
 def get_args():
     parser = argparse.ArgumentParser(description="diretório para ser supervisionado")
     parser.add_argument("-ds", "--dir_superv", type=str, default="C://Users//danie//Desktop//Dir",
@@ -52,7 +45,7 @@ class servico_principal(object):
 
     def iniciar(self):
         self.events.set()
-        in_threads = [self.monitorar, self.observador_win]
+        in_threads = [self.monitorar]
         threads = [threading.Thread(target=i) for i in in_threads]
         print("Iniciando threads...\n")
         for i in threads: i.start()
@@ -64,27 +57,6 @@ class servico_principal(object):
             print("Finalizando processo...") # Mata o processo
             self.logf.salvar()
             os.popen("taskkill /PID " + str(os.getpid()) + " /F")
-
-    def observador_win(self):
-        ACTIONS = {1 : "Created", 2 : "Deleted",3 : "Updated",4 : "Renamed from something",5 : "Renamed from something"}
-        FILE_LIST_DIRECTORY = 0x0001
-        diretorio = self.dir_backup if self.servidor else self.dir_superv 
-        hDir = win32file.CreateFile(
-            diretorio, FILE_LIST_DIRECTORY, win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
-            None, win32con.OPEN_EXISTING, win32con.FILE_FLAG_BACKUP_SEMANTICS, None
-        )
-
-        while True:
-            results = win32file.ReadDirectoryChangesW( hDir, 1024, True, win32con.FILE_NOTIFY_CHANGE_FILE_NAME |
-                win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES |
-                win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE |
-                win32con.FILE_NOTIFY_CHANGE_SECURITY, None, None
-            )
-            for action, file in results:
-                token = " -- "
-                full_filename = os.path.join(diretorio, file)
-                alteracao = str(ACTIONS.get(action, "Unknown")) + token + str(full_filename).replace("\\", "//")
-                self.alteracoes.append(alteracao)
 
     def resolver_mudanca(self, alteracao):
         if len(alteracao) != 2 : # Não é renomear
@@ -139,13 +111,14 @@ class servico_principal(object):
             t.start()
             t.join()
 
-
-
 # main é minha thread principal
 def main():
     args = get_args()
     servidor = True if args.tipo == "servidor" else False
 
+    # PRECISA DAR UMA OLHADA NESSA PARTE !!!
+    # Ela esta formatada para pegar diretorio do windows...
+    # Então precisa ver como ela vai fazer pra criar um diretorio de backup
     if servidor:
         args.dir_backup = (os.getcwd() + "//Backup").replace("\\", "//")
         if not os.path.exists(args.dir_backup):
