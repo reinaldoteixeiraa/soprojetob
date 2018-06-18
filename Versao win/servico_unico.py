@@ -6,13 +6,6 @@ import util # da minha pasta
 import socketserver
 from log_class import log_file
 
-class MyTCPHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        self.data = self.request.recv(1024).strip()
-        print("{} wrote:".format(self.client_address[0]))
-        print(self.data)
-        self.request.sendall(self.data.upper())
-
 def get_args():
     parser = argparse.ArgumentParser(description="diretório para ser supervisionado")
     parser.add_argument("-ds", "--dir_superv", type=str, default="C://Users//danie//Desktop//Dir",
@@ -138,8 +131,6 @@ class servico_principal(object):
             t = threading.Thread(self.atualizar())
             t.start()
             t.join()
-
-
 
 # main é minha thread principal
 def main():
