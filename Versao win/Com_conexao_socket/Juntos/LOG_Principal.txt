@@ -1,0 +1,7 @@
+path : C://Users//danie//Documents//GitHub//soprojetob//Versao win//Com_conexao_socket//Juntos//Backup
+data: 2018-06-18 18:40:36.711390
+versao: 0
+Files: 
+path: C://Users//danie//Documents//GitHub//soprojetob//Versao win//Com_conexao_socket//Juntos//Backup
+Diretorios: 
+

@@ -1,0 +1,7 @@
+path supervisionado: C://Users//danie//Desktop//Dir
+path backup: 
+data: 2018-06-18 15:35:20.957463
+versao: 0
+Files: 
+Diretorios: 
+

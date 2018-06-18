@@ -13,15 +13,21 @@ class log_file(object):
     def set_arg(self, key, value):
         if type(key) == str and type(value) in [int, str, float, list, tuple]:
             self.dict[key] = value
+        elif type(key) == list and type(value) == list and len(key) == len(value):
+            self.dict.update(dict(zip(key, value)))
 
     def __str__(self):
         string = ""
         for i, j in self.dict.items():
             if type(j) != list:
-                string += "%s%s%s\n" % (i,self.token,j)
+                string += "%s%s%s\n" % (i, self.token, j)
         return string
 
     def carregar(self):
+        self.dict = self.vizualizar()
+
+    def vizualizar(self):
+        dict_file = {}
         with open(self.name_file, "r") as file:
             reading = file.read()
             lines = reading.split("\n")
@@ -32,17 +38,23 @@ class log_file(object):
             for i in range(len(keys)-1):
                 x = reading.split(keys[i+1])
                 value = x[0].replace(keys[i]+self.token, "")
-                self.dict[keys[i]] = value[1:-1].split("\n") if value.count("\n") > 1 else value.replace("\n","")
+                dict_file[keys[i]] = value[1:-1].split("\n") if value.count(
+                    "\n") > 1 else value.replace("\n", "")
                 reading = reading.replace(x[0], "")
 
             value = reading.split(keys[-1]+self.token)
-            self.dict[keys[-1]] = value[-1][1:-1].split("\n")
+            dict_file[keys[-1]] = value[-1][1:-1].split("\n")
+        return dict_file
+
+    def verificar_mudanca(self):
+        dict_file = self.vizualizar()
+        return dict_file == self.dict
 
     def salvar(self):
         with open(self.name_file, "w") as file:
             for key, values in self.dict.items():
                 if type(values) in [int, str, float]:
-                    file.write("%s: %s\n" % (key, str(values) ))
+                    file.write("%s: %s\n" % (key, str(values)))
             for key, values in self.dict.items():
                 if type(values) in [list, tuple]:
                     file.write("%s: \n" % (key))
@@ -64,4 +76,3 @@ lg.add_arg("Dirs", (5,1,9,8))
 lg.carregar()
 print(lg)
 '''
-
