@@ -12,8 +12,17 @@ class servidor(object):
         self.addr = (ip, port)      # Endereço para ouvir
         self.sock.bind(self.addr)   # Ligando para o endereço (self.addr)
         self.sock.listen(1)         # Ouvindo: max (1) conexao
+
         self.CONNECTION_LIST = []
-        print("Chat server iniciado na porta", port)
+        # mensagens: Simula uma fila que armazena as mensagens enviadas e recebidas
+        self.mensagens = []
+        print("Servidor iniciado na porta", port)
+
+    def consumir_mensagem(self):
+        return self.mensagens.pop(0)
+
+    def ha_mensagens(self):
+        return len(self.mensagens) != 0
 
     def iniciar(self, conectar=None):
         conectar = self.conectar if conectar == None else conectar
@@ -24,7 +33,7 @@ class servidor(object):
     def enviar(self):
         ''' Deve ser subscrita para a classe que estiver usando '''
         try:
-            while 1:
+            while True:
                 message = input('')
                 self.send_message(message)
         except KeyboardInterrupt:
@@ -41,11 +50,6 @@ class servidor(object):
                 socket.close()
                 self.CONNECTION_LIST.remove(socket)
 
-    '''def send_message(self, message):
-        for socket in self.CONNECTION_LIST:
-            socket.sendall(bytes(message, "utf-8"))
-    '''
-
     def conectar(self):
         ''' Deve ser subscrita para a classe que estiver usando '''
         peer, addr = self.sock.accept()
@@ -56,7 +60,8 @@ class servidor(object):
         while True:
             try:
                 message = peer.recv(1024)
-                print('  ', message.decode('utf-8'))
+                #print("Recebi:", message.decode('utf-8'))
+                self.mensagens.append(message.decode('utf-8'))
                 for other in self.CONNECTION_LIST:
                     if peer != other:
                         other.sendall(bytes(message, "utf-8"))
@@ -65,7 +70,14 @@ class servidor(object):
                 self.CONNECTION_LIST.remove(peer)
                 break
 
+    '''def send_message(self, message):
+        for socket in self.CONNECTION_LIST:
+            socket.sendall(bytes(message, "utf-8"))
+    '''
 
+
+'''
 s = servidor()
 s.iniciar()
 s.enviar()
+'''

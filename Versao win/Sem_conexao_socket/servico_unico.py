@@ -9,7 +9,6 @@ import win32file
 import win32event
 import win32con
 import util  # da minha pasta
-import socketserver
 from log_class import log_file
 
 
@@ -36,7 +35,6 @@ class servico_principal(object):
         self.dir_superv = dir_superv
         self.dir_backup = dir_backup
         self.versao = 0
-        self.events = threading.Event()
         self.data = datetime.now()
         self.alteracoes = []
 
@@ -60,7 +58,6 @@ class servico_principal(object):
         print()
 
     def iniciar(self):
-        self.events.set()
         in_threads = [self.monitorar, self.observador_win]
         threads = [threading.Thread(target=i) for i in in_threads]
         print("Iniciando threads...\n")
@@ -142,7 +139,7 @@ class servico_principal(object):
 
     def monitorar(self):
         print("Inicio do monitoramento...\n")
-        while self.events.is_set():
+        while True:
             time.sleep(5)
             print("%15s : %s" % ("diff", datetime.now()-self.data))
             print(self.logf)
