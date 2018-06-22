@@ -21,6 +21,7 @@ class servico(object):
         self.is_server = dir == ""
         self.dir = dir if dir != "" else os.getcwd() + "//backup"
         self.dir.replace("\\", "//")
+        self.resultados_observador = []
         self.alteracoes_me = []
 
         # Variáveis para tratar as ocorrencias do servidor
@@ -64,7 +65,8 @@ class servico(object):
                 "Conectado -- " + self.dir + self.token + "unk")
 
         for_threads = [self.observador_win, self.monitorar,
-                       self.receber_servico, self.executar_acao]
+                       self.receber_servico, self.executar_acao,
+                       self.decodificar_observador]
         threads = [threading.Thread(target=i) for i in for_threads]
         [i.start() for i in threads]
 
@@ -79,7 +81,9 @@ class servico(object):
         '''
             Executa as alteracoes armazenadas.
 
-            Existe uma região critica concorrente com detectar_acao.
+            Existe uma região critica concorrente com receber_servico.
+
+            Se não existe alteracoes ele dorme.
 
             Executado por uma Thread.
         '''
@@ -90,76 +94,101 @@ class servico(object):
             self.semaforo_recebi.release()
 
             for dir in dirs:
-
                 # Região critica
                 self.semaforo_recebi.acquire()
                 consumo = self.consome_recebi(dir)
                 self.semaforo_recebi.release()
 
+                dir_me = self.dir + dir
                 acao = consumo[0]
                 isfile = consumo[1]
                 if acao == "Conectado":
                     print("Usuario conectado possui o diretorio:", dir)
                     self.dir_usuarios.append(dir)
-                elif isfile == "dir":
-                    if acao == "Created":
+                elif acao == "Created":
+                    if isfile == "dir":
                         print("Diretorio criado:", dir)
-                        # util.criar_diretorio(dir)
+                        # util.criar_diretorio(dir_me)
+                    elif isfile == "file":
+                        print("Arquivo criado:", dir)
+                        dados = consumo[2]
+                        print(dados)
+                        #util.criar_arquivo(dir_me, dados)
+                elif acao == "Deleted":
+                    if os.path.isfile(dir_me):
+                        print("Arquivo deletado:", dir)
+                        # util.deletar_arquivo(dir_me)
+                    if os.path.isdir(dir_me):
+                        print("Diretorio deletado:", dir)
+                        # util.deletar_diretorio(dir_me)
+                elif acao == "Renamed from something":
+                    dir2 = isfile
+                    if os.path.isfile(dir_me):
+                        print("Arquivo renomeado")
+                    if os.path.isdir(dir_me):
+                        print("Diretorio renomeado")
+                    print("De:", dir)
+                    print("Para:", dir2)
+                    if os.path.isdir(dir_me) or os.path.isfile:
+                        print("Esse arquivo ou diretório existe e posso altera-lo")
+                        #util.renomear_arquivo_ou_diretorio(dir_me, self.dir+dir2)
+                elif acao == "Updated":
+                    if os.path.isfile(dir_me):
+                        print("Arquivo alterado:", dir)
+                        dados = consumo[2]
+                        if os.path.isfile(dir_me):
+                            print("Esse arquivo existe e posso atualiza-lo")
+                            # util.criar_arquivo(dir_me, dados)
                 else:  # Se eu não consegui fazer nada, coloca de volta na estrutura
+                    print("Não existe um procedimento para essa ação ainda.")
+                    print("Acao retornada para a estrutura.")
                     # Região critica
                     self.semaforo_recebi.acquire()
                     self.add_recebi(dir, consumo)
                     self.semaforo_recebi.release()
+            else:
+                time.sleep(1)
 
-    def detectar_acao(self):
-        '''
-            Faz as verificacoes necessarias para armazenar uma alteracao.
-
-            Existe uma região critica concorrente com executar_acao.
-
-            Executado pelo metodo receber_servico.
-        '''
-        while len(self.alteracoes_from):
-            for i in self.alteracoes_from:
-                alteracao = i.split(self.token)
-                # print(alteracao)
-                acao = alteracao[0]
-                dir = alteracao[1]
-                isfile = alteracao[2]
-                self.alteracoes_from.pop(0)
-
-                # região critica
-                self.semaforo_recebi.acquire()
-                self.add_recebi(dir, [acao, isfile])
-                self.semaforo_recebi.release()
+    def remover_diretorio_principal(self, dir):
+        if not self.is_server:
+            return dir.split("backup")[1]
+        else:
+            return util.comprimir_diretorio(dir, self.dir_usuarios)
 
     def receber_servico(self):
         '''
             Recebe todas as mensagens do servidor e armazena na variavel alteracoes_from da classe.
+            Faz as verificacoes necessarias para armazenar uma alteracao.
+
+            Se não existe mensagens ele dorme.
+
+            Existe uma região critica concorrente com executar_acao.
 
             Executado por uma Thread.
         '''
         while True:
             while self.servidor.ha_mensagens():
                 msg = self.servidor.consumir_mensagem()
+
                 alt = msg.split(self.token)
                 acao = alt[0]
                 dir = alt[1]
                 isfile = alt[2]
-                if not self.is_server:
-                    dir = dir.split("backup")[1]
+
+                dir = self.remover_diretorio_principal(dir)
 
                 if acao == "Renamed from something":
-                    msg1 = msg
-                    dir1 = msg1.split(self.token)[1]
                     while not self.servidor.ha_mensagens():
                         time.sleep(0.01)
                     msg2 = self.servidor.consumir_mensagem()
-                    acao = msg2.split(self.token)[0]
-                    dir2 = msg2.split(self.token)[1]
+
+                    alt = msg2.split(self.token)
+                    acao = alt[0]
+                    dir2 = alt[1]
+                    dir2 = self.remover_diretorio_principal(dir2)
                     # Regiao critica
                     self.semaforo_recebi.acquire()
-                    self.add_recebi(dir, [acao, isfile])
+                    self.add_recebi(dir, [acao, dir2])
                     self.semaforo_recebi.release()
                 else:
                     # Regiao critica
@@ -187,6 +216,8 @@ class servico(object):
         '''
             Printa as alteracoes e envia a mensagem da alteracao pelo servidor.
 
+            Se não existe alteracoes para enviar ele dorme.
+
             Executado por uma Thread.
         '''
         while True:
@@ -194,7 +225,41 @@ class servico(object):
                 print("Enviei")
                 print(*self.alteracoes_me, sep='\n')
                 self.enviar_servico()
-            time.sleep(5)
+            else:
+                time.sleep(1)
+
+    def decodificar_observador(self):
+        '''
+            Transforma o resultado do observador em algo útil para a aplicação.
+
+            Se não existe resultados do observador para decoficicar ele dorme.
+
+            Executado por uma Thread.
+        '''
+
+        diretorio = self.dir
+        ACTIONS = {1: "Created", 2: "Deleted", 3: "Updated",
+                   4: "Renamed from something", 5: "Renamed from something"}
+        while True:
+            while len(self.resultados_observador) > 0:
+                results = self.resultados_observador.pop(0)
+                for action, file in results:
+                    token = " -- "
+                    full_filename = os.path.join(diretorio, file)
+                    alteracao = str(ACTIONS.get(action, "Unknown")) + \
+                        token + str(full_filename).replace("\\", "//")
+                    if os.path.isfile(full_filename):
+                        alteracao += token + "file"
+                        time.sleep(0.001)
+                        alteracao += token + \
+                            str(util.ler_arquivo(full_filename))
+                    elif os.path.isdir(full_filename):
+                        alteracao += token + "dir"
+                    else:
+                        alteracao += token + "unk"
+                    self.alteracoes_me.append(alteracao)
+            else:
+                time.sleep(1)
 
     def observador_win(self):
         ''' 
@@ -204,8 +269,7 @@ class servico(object):
             Executado por uma Thread.
         '''
         diretorio = self.dir
-        ACTIONS = {1: "Created", 2: "Deleted", 3: "Updated",
-                   4: "Renamed from something", 5: "Renamed from something"}
+
         FILE_LIST_DIRECTORY = 0x0001
         hDir = win32file.CreateFile(
             diretorio, FILE_LIST_DIRECTORY, win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
@@ -218,17 +282,4 @@ class servico(object):
                                                       win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE |
                                                       win32con.FILE_NOTIFY_CHANGE_SECURITY, None, None
                                                       )
-            for action, file in results:
-                token = " -- "
-                full_filename = os.path.join(diretorio, file)
-                alteracao = str(ACTIONS.get(action, "Unknown")) + \
-                    token + str(full_filename).replace("\\", "//")
-                if os.path.isfile(full_filename):
-                    alteracao += token + "file"
-                    time.sleep(0.001)
-                    alteracao += token + str(util.ler_arquivo(full_filename))
-                elif os.path.isdir(full_filename):
-                    alteracao += token + "dir"
-                else:
-                    alteracao += token + "unk"
-                self.alteracoes_me.append(alteracao)
+            self.resultados_observador.append(results)
