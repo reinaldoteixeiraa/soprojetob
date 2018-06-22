@@ -39,15 +39,25 @@ class servico(object):
             sys.exit()
 
     def add_recebi(self, key, value):
+        '''
+            Função critica do sistema.
+        '''
+        self.semaforo_recebi.acquire()
         if key not in self.recebi.keys():
             self.recebi[key] = [value]
         else:
             self.recebi[key].append(value)
+        self.semaforo_recebi.release()
 
     def consome_recebi(self, key):
+        '''
+            Função critica do sistema.
+        '''
+        self.semaforo_recebi.acquire()
         pop = self.recebi[key].pop(0)
         if len(self.recebi[key]) == 0:
             self.recebi.pop(key)
+        self.semaforo_recebi.release()
         return pop
 
     def iniciar(self):
@@ -94,10 +104,7 @@ class servico(object):
             self.semaforo_recebi.release()
 
             for dir in dirs:
-                # Região critica
-                self.semaforo_recebi.acquire()
-                consumo = self.consome_recebi(dir)
-                self.semaforo_recebi.release()
+                consumo = self.consome_recebi(dir)  # Função critica
 
                 dir_me = self.dir + dir
                 acao = consumo[0]
@@ -112,8 +119,7 @@ class servico(object):
                     elif isfile == "file":
                         print("Arquivo criado:", dir)
                         dados = consumo[2]
-                        print(dados)
-                        #util.criar_arquivo(dir_me, dados)
+                        # util.criar_arquivo(dir_me, dados)
                 elif acao == "Deleted":
                     if os.path.isfile(dir_me):
                         print("Arquivo deletado:", dir)
@@ -131,21 +137,18 @@ class servico(object):
                     print("Para:", dir2)
                     if os.path.isdir(dir_me) or os.path.isfile:
                         print("Esse arquivo ou diretório existe e posso altera-lo")
-                        #util.renomear_arquivo_ou_diretorio(dir_me, self.dir+dir2)
+                        # util.renomear_arquivo_ou_diretorio(dir_me, self.dir+dir2)
                 elif acao == "Updated":
                     if os.path.isfile(dir_me):
                         print("Arquivo alterado:", dir)
                         dados = consumo[2]
                         if os.path.isfile(dir_me):
                             print("Esse arquivo existe e posso atualiza-lo")
-                            # util.criar_arquivo(dir_me, dados)
+                            # ªutil.criar_arquivo(dir_me, dados)
                 else:  # Se eu não consegui fazer nada, coloca de volta na estrutura
                     print("Não existe um procedimento para essa ação ainda.")
                     print("Acao retornada para a estrutura.")
-                    # Região critica
-                    self.semaforo_recebi.acquire()
-                    self.add_recebi(dir, consumo)
-                    self.semaforo_recebi.release()
+                    self.add_recebi(dir, consumo)  # Função critica
             else:
                 time.sleep(1)
 
@@ -154,6 +157,48 @@ class servico(object):
             return dir.split("backup")[1]
         else:
             return util.comprimir_diretorio(dir, self.dir_usuarios)
+
+    def consumir_mensagem_servidor(self, msg):
+        '''
+            Versão recursiva do receber_servico para ler arquivos grandes.
+
+            É executada pelo método receber_servico e por si própria(Recursiva).
+        '''
+        alt = msg.split(self.token)
+        acao = alt[0]
+        dir = alt[1]
+        isfile = alt[2]
+
+        dir = self.remover_diretorio_principal(dir)
+
+        if acao == "Renamed from something":
+            while not self.servidor.ha_mensagens():
+                time.sleep(0.01)
+            msg2 = self.servidor.consumir_mensagem()
+
+            alt = msg2.split(self.token)
+            acao = alt[0]
+            dir2 = alt[1]
+            dir2 = self.remover_diretorio_principal(dir2)
+            self.add_recebi(dir, [acao, dir2])  # Função critica
+        else:
+            if isfile == "file":
+                dados = alt[4]
+                tamanho = int(alt[3]) - len(dados)
+                while tamanho > 0:
+                    while not self.servidor.ha_mensagens():
+                        time.sleep(0.01)
+                    msg2 = self.servidor.consumir_mensagem()
+
+                    alt = msg2.split(self.token)
+                    if len(alt) > 1:
+                        self.consumir_mensagem_servidor(msg2)
+                    else:
+                        dados += msg2
+                        tamanho -= len(msg2)
+                self.add_recebi(dir, [acao, isfile, dados])  # Função critica
+            else:
+                self.add_recebi(dir, [acao, isfile])  # Função critica
 
     def receber_servico(self):
         '''
@@ -169,36 +214,7 @@ class servico(object):
         while True:
             while self.servidor.ha_mensagens():
                 msg = self.servidor.consumir_mensagem()
-
-                alt = msg.split(self.token)
-                acao = alt[0]
-                dir = alt[1]
-                isfile = alt[2]
-
-                dir = self.remover_diretorio_principal(dir)
-
-                if acao == "Renamed from something":
-                    while not self.servidor.ha_mensagens():
-                        time.sleep(0.01)
-                    msg2 = self.servidor.consumir_mensagem()
-
-                    alt = msg2.split(self.token)
-                    acao = alt[0]
-                    dir2 = alt[1]
-                    dir2 = self.remover_diretorio_principal(dir2)
-                    # Regiao critica
-                    self.semaforo_recebi.acquire()
-                    self.add_recebi(dir, [acao, dir2])
-                    self.semaforo_recebi.release()
-                else:
-                    # Regiao critica
-                    self.semaforo_recebi.acquire()
-                    if isfile == "file":
-                        dados = alt[3]
-                        self.add_recebi(dir, [acao, isfile, dados])
-                    else:
-                        self.add_recebi(dir, [acao, isfile])
-                    self.semaforo_recebi.release()
+                self.consumir_mensagem_servidor(msg)
             else:
                 time.sleep(1)
 
@@ -251,8 +267,9 @@ class servico(object):
                     if os.path.isfile(full_filename):
                         alteracao += token + "file"
                         time.sleep(0.001)
+                        dados = util.ler_arquivo(full_filename)
                         alteracao += token + \
-                            str(util.ler_arquivo(full_filename))
+                            str(len(dados)) + token + str(dados)
                     elif os.path.isdir(full_filename):
                         alteracao += token + "dir"
                     else:

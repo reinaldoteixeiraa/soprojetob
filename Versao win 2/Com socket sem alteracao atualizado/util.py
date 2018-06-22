@@ -27,6 +27,9 @@ def deletar_arquivo(nome):
 
 
 def criar_arquivo(nome, dados):
+    with open(nome, "rb") as file:
+        if dados == file.read():
+            return None
     with open(nome, "wb") as file:
         file.write(dados)
 

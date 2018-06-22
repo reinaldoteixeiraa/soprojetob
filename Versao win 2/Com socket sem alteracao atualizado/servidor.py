@@ -12,7 +12,6 @@ class servidor(object):
         self.addr = (ip, port)      # Endereço para ouvir
         self.sock.bind(self.addr)   # Ligando para o endereço (self.addr)
         self.sock.listen(1)         # Ouvindo: max (1) conexao
-        self.lim_envio = 4096
 
         self.CONNECTION_LIST = []
         # mensagens: Simula uma fila que armazena as mensagens enviadas e recebidas
@@ -60,7 +59,7 @@ class servidor(object):
 
         while True:
             try:
-                message = peer.recv(self.lim_envio)
+                message = peer.recv(1024)
                 #print("Recebi:", message.decode('utf-8'))
                 self.mensagens.append(message.decode('utf-8'))
                 for other in self.CONNECTION_LIST:

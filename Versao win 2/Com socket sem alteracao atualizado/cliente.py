@@ -7,7 +7,7 @@ class cliente(object):
     def __init__(self, ip='localhost', port=80):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.addr = (ip, port)
-        self.lim_envio = 4096
+
         # mensagens: Simula uma fila que armazena as mensagens enviadas e recebidas
         self.mensagens = []
         print("Cliente pronto para se conectar")
@@ -46,7 +46,7 @@ class cliente(object):
         ''' Deve ser subscrita para a classe que estiver usando '''
         while True:
             try:
-                reply = self.sock.recv(self.lim_envio)
+                reply = self.sock.recv(1024)
                 #print("Recebi:", reply.decode('utf-8'))
                 self.mensagens.append(reply.decode('utf-8'))
             except:
