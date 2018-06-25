@@ -50,6 +50,16 @@ def criar_arquivo(nome, dados):
         file.write(dados)
 
 
+def atualizar_arquivo(nome, dados):
+    if os.path.isfile(nome):
+        with codecs.open(nome, "r", encoding='utf-8', errors='ignore') as file:
+            lendo = file.read()
+            if dados == lendo:
+                return None
+        with codecs.open(nome, "a", encoding='utf-8', errors='ignore') as file:
+            file.write(dados)
+
+
 def ler_arquivo(nome):
     if os.path.isfile(nome):
         with codecs.open(nome, "r", encoding='utf-8', errors='ignore') as file:

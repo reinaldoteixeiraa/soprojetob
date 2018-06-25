@@ -1,5 +1,7 @@
 import threading
 import socket
+import time
+import os
 
 
 class servidor(object):
@@ -67,3 +69,15 @@ class servidor(object):
                 print("Cliente (%s, %s) se desconectou" % addr)
                 self.CONNECTION_LIST.remove(peer)
                 break
+
+    '''def send_message(self, message):
+        for socket in self.CONNECTION_LIST:
+            socket.sendall(bytes(message, "utf-8"))
+    '''
+
+
+'''
+s = servidor()
+s.iniciar()
+s.enviar()
+'''

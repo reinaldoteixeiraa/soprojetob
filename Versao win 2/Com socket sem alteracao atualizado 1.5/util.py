@@ -1,19 +1,5 @@
 import os
 import shutil
-import codecs
-
-
-def fragmentar_arquivo(dados):
-    resultado = []
-    t = 500
-    for i in range(len(dados)//t+1):
-        if i*t+t < len(dados):
-            resultado.append(dados[i*t:i*t+t])
-        else:
-            break
-    if len(dados) % t != 0:
-        resultado.append(dados[i*t:])
-    return resultado
 
 
 def comprimir_diretorio(dir, dirs):
@@ -41,26 +27,21 @@ def deletar_arquivo(nome):
 
 
 def criar_arquivo(nome, dados):
-    if os.path.isfile(nome):
-        with codecs.open(nome, "r", encoding='utf-8', errors='ignore') as file:
-            lendo = file.read()
-            if dados == lendo:
-                return None
-    with codecs.open(nome, "w+", encoding='utf-8', errors='ignore') as file:
+    with open(nome, "rb") as file:
+        if dados == file.read():
+            return None
+    with open(nome, "wb") as file:
         file.write(dados)
 
 
 def ler_arquivo(nome):
-    if os.path.isfile(nome):
-        with codecs.open(nome, "r", encoding='utf-8', errors='ignore') as file:
-            lendo = file.read()
-        return lendo
-    return ""
+    with open(nome, "rb") as file:
+        lendo = file.read()
+    return lendo
 
 
 def renomear_arquivo_ou_diretorio(d1, d2):
-    if os.path.isfile(d1):
-        os.rename(d1, d2)
+    os.rename(d1, d2)
 
 
 def criar_diretorio(dir):

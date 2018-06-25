@@ -1,0 +1,8 @@
+Para executar o arquivo digite, voce deve digitar os comando numa máquina com o SO windows instalada
+
+Servidor
+python3 BkpSync.py
+
+Cliente
+python3 BkpSync.py -dir "C:\\ \\ \\DiretorioParaSincronizar"
+
